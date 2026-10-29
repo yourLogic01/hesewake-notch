@@ -367,6 +367,8 @@ const ID_TEXT: &[(&str, &str)] = &[
     ("Stopwatch, countdown, Pomodoro", "Stopwatch, hitung mundur, Pomodoro"),
     ("Last 10 copied texts", "10 teks terakhir yang disalin"),
     ("What is left today", "Sisa acara hari ini"),
+    ("Background glow", "Cahaya latar"),
+    ("Artwork or accent color at the bottom; off: plain black", "Warna sampul atau aksen di bawah; mati: hitam polos"),
 ];
 
 #[cfg(test)]

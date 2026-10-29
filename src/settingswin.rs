@@ -276,6 +276,7 @@ impl App {
                             Ctl::Seg((0..settings::IDLE_DISPLAY_LABELS.len()).map(|i| settings::idle_display_label(i).to_string()).collect(), false),
                         ),
                         toggle(Opt::Minimal, tr("Minimal notch"), tr("Thin line while idle")),
+                        toggle(Opt::Glow, tr("Background glow"), tr("Artwork or accent color at the bottom; off: plain black")),
                     ],
                 ),
             ],

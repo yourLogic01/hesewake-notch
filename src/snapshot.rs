@@ -1116,3 +1116,41 @@ fn settings_window_controls_land_on_their_setting() {
     assert!(settingswin::hit_center(&a, Hit::Step(Opt::City, true)).is_some());
     assert!(settingswin::hit_center(&a, Hit::Press(Opt::Prayer)).is_some());
 }
+
+/// Frames in the middle of a swipe from Music (with artwork and its colour glow) to the next slide.
+fn music_transition_frame(name: &str, pos: f32, glow: bool) {
+    let mut a = test_app(1.0);
+    a.cfg.glow = glow;
+    let mut rgba = Vec::with_capacity(88 * 88 * 4);
+    for y in 0..88u32 {
+        for x in 0..88u32 {
+            rgba.extend_from_slice(&[230, (90 + x) as u8, (40 + y / 2) as u8, 255]);
+        }
+    }
+    a.media.playing = true;
+    a.media.title = "Tokyo Drift".into();
+    a.set_art(&rgba);
+    std::thread::sleep(Duration::from_millis(750)); // let the colour glow fade in
+    open_slide(&mut a, SlideId::Music);
+    let (w, h) = anim::target(&a);
+    (a.w, a.h) = (w, h);
+    a.slide = 1;
+    a.sp = pos;
+    render::draw(&mut a);
+    let Some(dir) = std::env::var_os("SNAPSHOT_DIR") else { return };
+    let g = a.gfx.as_ref().expect("gfx");
+    let mut out = Pixmap::new(g.pm.width(), g.pm.height()).expect("canvas size");
+    out.fill(Color::from_rgba8(118, 124, 134, 255));
+    out.draw_pixmap(0, 0, g.pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None);
+    std::fs::create_dir_all(&dir).expect("create snapshot folder");
+    out.save_png(std::path::Path::new(&dir).join(format!("{name}@100.png"))).expect("save png");
+}
+
+#[test]
+fn snap_music_swipe() {
+    for (i, pos) in [0.25, 0.5, 0.75].into_iter().enumerate() {
+        music_transition_frame(&format!("music-swipe-{i}"), pos, true);
+    }
+    // Settings > Appearance > Background glow off: plain black
+    music_transition_frame("music-no-glow", 0.0, false);
+}

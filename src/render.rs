@@ -143,16 +143,21 @@ pub(crate) fn draw(a: &mut App) {
     }
     if p > 0.04 {
         let pos = a.sp - a.drag_dx / 160.0;
-        let mut vis: Vec<(usize, f32, f32)> = Vec::new();
+        // (slide, x offset, glow alpha, content alpha)
+        let mut vis: Vec<(usize, f32, f32, f32)> = Vec::new();
         let n = a.n_slides();
         for i in 0..n {
             let d = cyc(i as f32 - pos, n);
             if d.abs() >= 1.0 {
                 continue;
             }
-            vis.push((i, d * 48.0, (1.0 - d.abs()) * p));
+            // Content fades out over the first ~55% of the way, so the two slides barely overlap (a cross-fade of
+            // everything left a ghost of the Music artwork over the next slide).
+            let c = (1.0 - d.abs() / 0.55).clamp(0.0, 1.0);
+            vis.push((i, d * 48.0, (1.0 - d.abs()) * p, c * c * (3.0 - 2.0 * c) * p));
         }
-        for &(i, _, al) in &vis {
+        let glow_on = a.cfg.glow;
+        for &(i, _, al, _) in vis.iter().filter(|_| glow_on) {
             match a.order[i] {
                 SlideId::Music => a.music_glow(&mut g, &shape, w, h, al),
                 SlideId::Water => glow(&mut g, &shape, h, (30, 110, 235), 0.40 * al),
@@ -163,7 +168,8 @@ pub(crate) fn draw(a: &mut App) {
                 }
             }
         }
-        for &(i, ox, al) in &vis {
+        // below ~3% only the anti-aliased edges of e.g. the artwork would still show, as a thin outline
+        for &(i, ox, _, al) in vis.iter().filter(|v| v.3 > 0.03) {
             match a.order[i] {
                 SlideId::Music => a.slide_music(&mut g, ox, al),
                 SlideId::Water => a.slide_water(&mut g, ox, al),

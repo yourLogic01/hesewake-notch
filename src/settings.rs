@@ -43,6 +43,8 @@ pub(crate) struct Settings {
     pub(crate) weather_city: usize,
     /// Prayer times: 15-minute countdown + a toast when the prayer starts (city = weather city).
     pub(crate) prayer_on: bool,
+    /// Colour glow at the bottom of the open notch (artwork colours on Music, the accent elsewhere). Off: plain black.
+    pub(crate) glow: bool,
     /// Indeks di `scale::SIZES`: 0 = Auto (ikut scaling Windows), selebihnya ukuran tetap.
     pub(crate) notch_size: usize,
     /// Tampilan notch idle: 0 = bergantian jam/mata (10/15 menit), 1 = jam saja, 2 = mata saja.
@@ -76,6 +78,7 @@ impl Default for Settings {
             monitor: 0,
             weather_city: 0,
             prayer_on: true,
+            glow: true,
             notch_size: 0,
             idle_display: 0,
             accent: 0,
@@ -106,6 +109,7 @@ impl Settings {
                 "hud_brightness" => s.hud_brightness = flag,
                 "weather" => s.weather_on = flag,
                 "prayer" => s.prayer_on = flag,
+                "glow" => s.glow = flag,
                 "monitor" => {
                     if let Ok(n) = v.parse::<usize>() {
                         s.monitor = n.min(32);
@@ -153,7 +157,7 @@ impl Settings {
 
     pub(crate) fn serialize(&self) -> String {
         format!(
-            "minimal={}\nnotifications={}\nbusy_on_maximized={}\nlyric_lead_ms={}\nromaji_lyrics={}\nnotif_avatar={}\nlock_toast={}\nprivacy_dot={}\nslide_hotkeys={}\nhud_volume={}\nhud_brightness={}\nweather={}\nweather_city={}\nprayer={}\nmonitor={}\nnotch_size={}\nidle_display={}\naccent={}\nlang={}\nslides={}\n",
+            "minimal={}\nnotifications={}\nbusy_on_maximized={}\nlyric_lead_ms={}\nromaji_lyrics={}\nnotif_avatar={}\nlock_toast={}\nprivacy_dot={}\nslide_hotkeys={}\nhud_volume={}\nhud_brightness={}\nweather={}\nweather_city={}\nprayer={}\nglow={}\nmonitor={}\nnotch_size={}\nidle_display={}\naccent={}\nlang={}\nslides={}\n",
             self.minimal as u8,
             self.notifications as u8,
             self.busy_on_maximized as u8,
@@ -168,6 +172,7 @@ impl Settings {
             self.weather_on as u8,
             self.weather_city,
             self.prayer_on as u8,
+            self.glow as u8,
             self.monitor,
             self.notch_size,
             self.idle_display,
