@@ -148,8 +148,8 @@ mod tests {
     #[test]
     fn canvas_rounds_up() {
         assert_eq!(canvas(1.0), (W, H));
-        assert_eq!(canvas(1.25), (675, 240));
-        assert_eq!(canvas(1.1), (594, 212));
+        assert_eq!(canvas(1.25), (675, 285));
+        assert_eq!(canvas(1.1), (594, 251));
     }
 
     #[test]

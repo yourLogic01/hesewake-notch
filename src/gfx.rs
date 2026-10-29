@@ -526,8 +526,8 @@ mod tests {
     #[test]
     fn canvas_and_boxes_are_physical() {
         let g = Gfx::new(1.5);
-        assert_eq!((g.pm.width(), g.pm.height()), (810, 288));
-        assert_eq!(g.dirty, (0, 0, 810, 288));
+        assert_eq!((g.pm.width(), g.pm.height()), (810, 342));
+        assert_eq!(g.dirty, (0, 0, 810, 342));
     }
 
     #[test]
@@ -598,8 +598,9 @@ mod tests {
     fn scene_at_100_percent_is_unchanged() {
         let mut g = gfx_100();
         scene(&mut g);
-        // Hash diperbarui sekali saat tepi teks terang diperkuat (boost_lut); sebelum itu 6528788650261307270 (= sebelum skala DPI).
-        assert_eq!(fnv(g.pm.data()), 4458421239539419709, "hash adegan 100% berubah: pastikan perubahan gambar memang disengaja");
+        // Hash diperbarui saat tepi teks terang diperkuat (boost_lut; sebelum itu 6528788650261307270) dan saat canvas
+        // ditinggikan untuk dock ikon (4458421239539419709; gambarnya sama, hanya baris kosong di bawah yang bertambah).
+        assert_eq!(fnv(g.pm.data()), 9359756463027293501, "hash adegan 100% berubah: pastikan perubahan gambar memang disengaja");
     }
 
     /// Implementasi lama (kuadratik) sebagai acuan kebenaran.
