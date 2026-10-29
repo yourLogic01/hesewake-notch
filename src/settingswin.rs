@@ -285,7 +285,10 @@ impl App {
                 (tr("Busy mode"), vec![toggle(Opt::BusyOnMax, tr("Thin on maximize"), tr("Off: only on fullscreen"))]),
             ],
             Sec::Music => {
-                let mut rows = vec![row(Opt::LyricLead, tr("Lyric timing"), tr("Show earlier by"), Ctl::Stepper(format!("{:+} ms", self.cfg.lyric_lead_ms)))];
+                let mut rows = vec![
+                    toggle(Opt::NotchSong, tr("Song in the notch"), tr("Off: idle, lyrics only from the lyrics button")),
+                    row(Opt::LyricLead, tr("Lyric timing"), tr("Show earlier by"), Ctl::Stepper(format!("{:+} ms", self.cfg.lyric_lead_ms))),
+                ];
                 rows.push(if romaji::available() {
                     toggle(Opt::Romaji, tr("Romaji lyrics"), tr("Japanese to romaji"))
                 } else {

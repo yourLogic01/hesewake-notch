@@ -204,7 +204,13 @@ impl Gfx {
     pub(crate) fn icon_bell(&mut self, cx: f32, cy: f32, s: f32, swing: f32, p: &Paint) {
         let (sn, cs) = (swing * 0.35).sin_cos();
         let rot = |x: f32, y: f32| (cx + (x * cs - y * sn) * s / 2.0, cy + (x * sn + y * cs) * s / 2.0);
-        let pts = [(-0.62, 0.42), (-0.46, 0.42), (-0.42, -0.1), (-0.26, -0.5), (0.0, -0.64), (0.26, -0.5), (0.42, -0.1), (0.46, 0.42), (0.62, 0.42), (0.62, 0.58), (-0.62, 0.58)];
+        // Taller than wide: a round dome, nearly straight sides that flare at the rim, then the base.
+        let mut pts = vec![(-0.72, 0.62), (-0.72, 0.5), (-0.5, 0.32)];
+        for i in 0..=12 {
+            let a = std::f32::consts::PI * (1.0 + i as f32 / 12.0);
+            pts.push((a.cos() * 0.48, -0.2 + a.sin() * 0.48));
+        }
+        pts.extend([(0.5, 0.32), (0.72, 0.5), (0.72, 0.62)]);
         let mut pb = PathBuilder::new();
         for (i, &(x, y)) in pts.iter().enumerate() {
             let (px, py) = rot(x, y);
@@ -218,8 +224,11 @@ impl Gfx {
         if let Some(path) = pb.finish() {
             self.fill(&path, p);
         }
+        // knob on top and the clapper under the rim
+        let (kx, ky) = rot(0.0, -0.74);
+        self.circle(kx, ky, s * 0.06, p);
         let (bx, by) = rot(0.0, 0.84);
-        self.circle(bx, by, s * 0.1, p);
+        self.circle(bx, by, s * 0.11, p);
     }
 
     /// Tiga slider horizontal (ikon Settings).

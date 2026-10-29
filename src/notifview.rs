@@ -17,12 +17,11 @@ const GREY: [u8; 3] = TEXT_DIM;
 pub(crate) struct NotifUi {
     entered: bool,
     enter_t: Instant,
-    seen_t: Option<Instant>,
 }
 
 impl NotifUi {
     pub(crate) fn new() -> NotifUi {
-        NotifUi { entered: false, enter_t: Instant::now() - Duration::from_secs(10), seen_t: None }
+        NotifUi { entered: false, enter_t: Instant::now() - Duration::from_secs(10) }
     }
 }
 
@@ -48,26 +47,25 @@ impl App {
         self.expanded() && self.is_slide(SlideId::Notifications) && self.h > 100.0
     }
 
-    /// Dipanggil tiap frame/poll: animasi masuk, tandai dibaca setelah ±0,8 dtk terlihat, bersihkan baris yang selesai
-    /// dihapus.
+    /// Dipanggil tiap frame/poll: animasi masuk, tandai dibaca saat slide ditinggalkan (selama terbuka, yang baru tetap
+    /// bertanda titik, sama dengan angka di lonceng), bersihkan baris yang selesai dihapus.
     pub(crate) fn notif_ui_step(&mut self) {
         self.notifs.retain(|n| n.dismiss.map_or(true, |t| t.elapsed().as_secs_f32() < DISMISS_SECS));
         let max = self.notifs.len().saturating_sub(VIS);
         self.notif_scroll = self.notif_scroll.min(max);
         if !self.notif_visible() {
+            if self.nui.entered {
+                // leaving the slide: everything on it has been seen
+                for n in &mut self.notifs {
+                    n.unread = false;
+                }
+            }
             self.nui.entered = false;
-            self.nui.seen_t = None;
             return;
         }
         if !self.nui.entered {
             self.nui.entered = true;
             self.nui.enter_t = Instant::now();
-            self.nui.seen_t = Some(Instant::now());
-        }
-        if self.nui.seen_t.map_or(false, |t| t.elapsed().as_secs_f32() > 0.8) {
-            for n in &mut self.notifs {
-                n.unread = false;
-            }
         }
     }
 
@@ -159,6 +157,12 @@ impl App {
             let bx = LX + ox + hw + 9.0;
             g.pill(bx, 9.0, bw, bh, [255, 255, 255], 0.14 * al, 1.0);
             g.txt_c(&label, bx + bw / 2.0, 9.0 + ty(bh, 11.0), 11.0, [225, 225, 232], al, bw, true);
+            // how many of them are new (the dotted rows, and the number on the bell)
+            let unread = self.unread_count();
+            if unread > 0 {
+                let new = i18n::fill(tr("{} new"), &[&unread]);
+                g.txtb(&new, bx + bw + 8.0, 9.0 + ty(bh, 11.0), 11.0, g.acc.bright, al, 80.0);
+            }
             g.pill(CLEAR.0 + ox, CLEAR.1, CLEAR.2, CLEAR.3, [255, 255, 255], 0.12 * al, 1.0);
             g.txt_c(tr("Clear all"), CLEAR.0 + ox + CLEAR.2 / 2.0, CLEAR.1 + ty(CLEAR.3, 12.0), 12.0, [225, 225, 232], al, CLEAR.2, true);
         }

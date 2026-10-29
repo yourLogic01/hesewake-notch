@@ -68,14 +68,18 @@ impl App {
         }
         let (mx, my) = self.mouse;
         let (_, total) = self.dock_span();
-        my >= ZONE_TOP && my <= self.h.max(EXP_H) + 8.0 && (mx - CX).abs() <= total / 2.0 + 10.0
+        // the dot row (narrow, so buttons on the same row like the Music slide's volume don't open the dock),
+        // and once open the whole icon row under the slide
+        let dots = my >= ZONE_TOP && (mx - CX).abs() <= (self.n_slides() as f32 - 1.0) * 7.0 + 12.0;
+        let icons = self.dock_e() > 0.5 && my >= EXP_H - 4.0 && (mx - CX).abs() <= total / 2.0 + 10.0;
+        (dots || icons) && my <= self.h.max(EXP_H) + 8.0
     }
 
     /// Store the pointer position (logical px). True when the notch needs a redraw (dock opens/closes, hover moves).
     pub(crate) fn set_mouse(&mut self, x: f32, y: f32) -> bool {
-        let before = (self.dock_wanted(), self.dock_hit(self.mouse.0, self.mouse.1));
+        let before = (self.dock_wanted(), self.dock_hit(self.mouse.0, self.mouse.1), self.vol_hovered());
         self.mouse = (x, y);
-        let after = (self.dock_wanted(), self.dock_hit(x, y));
+        let after = (self.dock_wanted(), self.dock_hit(x, y), self.vol_hovered());
         before != after
     }
 

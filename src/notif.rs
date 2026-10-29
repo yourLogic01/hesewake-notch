@@ -359,7 +359,7 @@ impl App {
         if !self.notif_on || self.notif_access != Access::Allowed || self.expanded() || self.toast.is_some() {
             return None;
         }
-        if self.media.playing {
+        if self.now_playing_bar() {
             Some((CX + self.w / 2.0 - 58.0 - self.priv_extra(), self.h / 2.0))
         } else if self.unread_count() > 0 && !self.thin() {
             Some((CX + self.w / 2.0 - 20.0 - self.priv_extra(), self.h / 2.0))
@@ -370,7 +370,7 @@ impl App {
 
     /// Ruang tambahan (px) yang dibutuhkan notch kecil saat lonceng tampil bersama lagu.
     pub(crate) fn bell_extra(&self) -> f32 {
-        if self.notif_on && self.notif_access == Access::Allowed && self.media.playing { 24.0 } else { 0.0 }
+        if self.notif_on && self.notif_access == Access::Allowed && self.now_playing_bar() { 24.0 } else { 0.0 }
     }
 
     /// Goyang lonceng 0.9 dtk setelah notifikasi baru.
@@ -384,15 +384,16 @@ impl App {
         let e = self.bell_t.elapsed().as_secs_f32();
         let swing = if unread > 0 { (e * 22.0).sin() * (1.0 - e / 0.9).max(0.0) } else { 0.0 };
         let a = if unread > 0 { al } else { al * 0.45 };
-        g.icon_bell(bx, by, 14.0, swing, &paint(255, 255, 255, a));
+        g.icon_bell(bx, by - 1.0, 16.0, swing, &paint(255, 255, 255, a));
         if unread > 0 {
             let pop = (1.0 - (-9.0 * e).exp() * (16.0 * e).cos()).clamp(0.0, 1.2);
             let r = 5.5 * pop.min(1.15);
-            let (cx, cy) = (bx + 6.0, by - 5.5);
+            let (cx, cy) = (bx + 7.5, by - 6.5);
             g.circle(cx, cy, r, &paint(ACCENT[0], ACCENT[1], ACCENT[2], al));
+            // unread = new since the Notifications slide was last left; the slide marks the same ones with a dot
             let label = if unread > 9 { "9+".to_string() } else { unread.to_string() };
             if r > 4.0 {
-                g.txt_c(&label, cx, cy - 4.5, 8.5, [255, 255, 255], al, 12.0, true);
+                g.txt_c(&label, cx, cy + ty(0.0, 8.5), 8.5, [255, 255, 255], al, 12.0, true);
             }
         }
     }

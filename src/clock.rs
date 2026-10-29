@@ -54,6 +54,7 @@ impl App {
         let tw = g.width_ex(&date, ts, true);
         g.txtb(&hm, rx - hw, 40.0, hs, [255, 255, 255], al, 200.0);
         g.txtb(&day, rx - dw, 94.0, ds, [255, 255, 255], al, 200.0);
-        g.txtb(&date, rx - tw, 112.0, ts, [200, 200, 205], al, 200.0);
+        // the Music slide's volume pill opens over the date
+        g.txtb(&date, rx - tw, 112.0, ts, [200, 200, 205], al * (1.0 - self.vol_pop), 200.0);
     }
 }

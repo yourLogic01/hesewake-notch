@@ -133,6 +133,8 @@ fn test_app(s: f32) -> App {
         vol_t: past,
         bright_seen: false,
         vol_state: (0, false),
+        vol_pop: 0.0,
+        vol_drag: false,
         order: slides::visible_order(&cfg.slides, false),
         settings_open: false,
         settings_prev: None,
@@ -200,8 +202,33 @@ fn snap_idle_eye() {
 
 #[test]
 fn snap_playing() {
-    shot("playing", 1.0, |a| {
+    let song = |a: &mut App| {
         a.media = Media { title: "Almost Easy".into(), artist: "Avenged Sevenfold".into(), playing: true, pos: 60, dur: 240, pos_ms: 60_000, source: "Demo".into(), sources: 1 };
+    };
+    let with_lyrics = |a: &mut App| {
+        song(a);
+        a.lyrics = lyrics::Lyrics::Synced(vec![lyrics::LyricLine { at_ms: 0, text: "I'm not insane, I'm not insane".into(), roma: String::new() }]);
+        a.lyric_idx = Some(0);
+        a.lyric_w = 200.0;
+        a.lyric_t = Instant::now() - Duration::from_secs(5); // the line has faded in
+    };
+    // "Song in the notch" on (the default): artwork and title, or the current lyric line, as always
+    shot("playing", 1.0, song);
+    shot("playing-lyrics", 1.0, with_lyrics);
+    let mut a = test_app(1.0);
+    song(&mut a);
+    assert!(anim::target(&a).0 >= PLAYING.0, "the song in the small notch");
+    // off: idle while music plays (no lyrics, or the lyrics view closed) ...
+    a.cfg.notch_song = false;
+    assert!(anim::target(&a).0 < PLAYING.0, "idle without lyrics");
+    with_lyrics(&mut a);
+    assert!(anim::target(&a).0 < PLAYING.0, "idle while the lyrics view is closed");
+    // ... and the lyrics while the lyrics view is open
+    a.lyric_mode = true;
+    assert!(anim::target(&a).0 >= PLAYING.0, "lyrics view open: the current line in the small notch");
+    shot("playing-song-off", 1.0, |a| {
+        song(a);
+        a.cfg.notch_song = false;
     });
 }
 
@@ -1153,4 +1180,66 @@ fn snap_music_swipe() {
     }
     // Settings > Appearance > Background glow off: plain black
     music_transition_frame("music-no-glow", 0.0, false);
+}
+
+/// Music slide with a song playing; `pop`: how far the volume pill is open.
+fn music_playing(a: &mut App, pop: f32, vol: (u8, bool)) {
+    a.media.playing = true;
+    a.media.title = "Yank".into();
+    a.media.artist = "Wali - Topic".into();
+    a.media.dur = 274;
+    a.media.pos = 18;
+    open_slide(a, SlideId::Music);
+    a.vol_state = vol;
+    a.vol_pop = pop;
+    if pop > 0.0 {
+        a.mouse = (music::VOL_X, BTN_Y);
+    }
+}
+
+#[test]
+fn snap_music_volume() {
+    for s in SCALES {
+        shot("music-controls", s, |a| music_playing(a, 0.0, (64, false)));
+    }
+    shot("music-volume-open", 1.0, |a| music_playing(a, 1.0, (64, false)));
+    shot("music-volume-muted", 1.0, |a| music_playing(a, 1.0, (64, true)));
+}
+
+/// The notification bell in the small notch (idle, and with lyrics while a song plays) and on a Settings toggle.
+#[test]
+fn snap_bell() {
+    let bell = |a: &mut App| {
+        a.notif_on = true;
+        a.notif_access = notif::Access::Allowed;
+        a.notifs = notif::demo_items();
+        a.bell_t = Instant::now() - Duration::from_secs(5);
+    };
+    for s in [1.0, 1.5, 3.0] {
+        shot("bell-idle", s, bell);
+    }
+    let _ = sw_shot("bell-toggles", |a| a.sw_show_page(5));
+}
+
+/// New notifications keep their dot while the Notifications slide is open (the same number as on the bell), and
+/// become read once the slide is left.
+#[test]
+fn notifications_are_read_when_the_slide_is_left() {
+    let setup = |a: &mut App| {
+        a.notif_on = true;
+        a.notif_access = notif::Access::Allowed;
+        a.notifs = notif::demo_items();
+        open_slide(a, SlideId::Notifications);
+    };
+    shot("notifs-new", 1.0, setup);
+    let mut a = test_app(1.0);
+    setup(&mut a);
+    a.h = EXP_H;
+    assert_eq!(a.unread_count(), 2);
+    a.notif_ui_step();
+    a.notif_ui_step();
+    assert_eq!(a.unread_count(), 2, "still new while the slide is open");
+    a.hover = false;
+    a.notif_ui_step();
+    assert_eq!(a.unread_count(), 0, "read after leaving the slide");
 }

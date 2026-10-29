@@ -119,7 +119,7 @@ use eye::{EYE_REST_MS, EyeAnim, HOTKEY_ID, HOTKEY_PLAIN_H, IDLE_CYCLE_SECS, Idle
 use gfx::{Box4, Gfx, acc, dummy_path, ellipsize, in_rect, notch_path, paint, pixmap_from_rgba, decode_limited, rrect, ty, union_box, wrap_lines};
 use icon::{load_icon};
 use input::{click, context_menu};
-use music::{ArtData, Cmd, MARQUEE_GAP, MARQUEE_PAUSE, MARQUEE_SPEED, MCX, MCY, MW, MX, Media, media_thread};
+use music::{ArtData, BTN_Y, Cmd, CTRL_GAP, LYR_BTN_X, MARQUEE_GAP, MARQUEE_PAUSE, MARQUEE_SPEED, MCX, MCY, MW, MX, Media, media_thread};
 use nav::{NAV_L, NAV_R, cyc, dot_x};
 use note::{NOTE_H, NOTE_Y, NoteView, load_note, save_note};
 use render::present;
@@ -264,6 +264,9 @@ struct App {
     /// Peristiwa kecerahan pertama (saat pendaftaran) hanya dicatat, tidak ditampilkan.
     bright_seen: bool,
     vol_state: (u8, bool),
+    /// Volume pill on the Music slide: how far it is open (0..1), and whether its bar is being dragged.
+    vol_pop: f32,
+    vol_drag: bool,
     order: Vec<SlideId>,
     /// Slide Settings sedang dibuka (ada di carousel) dan slide asal sebelum dibuka.
     settings_open: bool,
@@ -303,12 +306,22 @@ impl App {
     }
 
     fn idle(&self) -> bool {
-        !self.expanded() && !self.thin() && !self.media.playing
+        !self.expanded() && !self.thin() && !self.now_playing_bar()
+    }
+
+    /// The small notch shows the playing song (artwork, title / lyrics, equalizer). With "Song in the notch" off it
+    /// stays idle (clock / eyes) instead, except for the lyrics while the lyrics view is open.
+    fn now_playing_bar(&self) -> bool {
+        if self.cfg.notch_song {
+            self.media.playing
+        } else {
+            self.lyric_mode && self.lyric_synced()
+        }
     }
 
     /// Notch menyusut jadi garis tipis: app penuh layar/Adobe (busy) atau mode Minimal saat tidak ada musik.
     fn thin(&self) -> bool {
-        self.busy || (self.minimal && !self.media.playing)
+        self.busy || (self.minimal && !self.now_playing_bar())
     }
 
     fn ready(&self) -> bool {
@@ -610,7 +623,9 @@ fn main() -> Result<()> {
             priv_t: Instant::now() - Duration::from_secs(10),
             vol_t: Instant::now() - Duration::from_secs(10),
             bright_seen: false,
-            vol_state: (0, false),
+            vol_state: audio::get().map_or((0, false), |(v, m)| ((v * 100.0).round() as u8, m)),
+            vol_pop: 0.0,
+            vol_drag: false,
             order: slides::visible_order(&cfg.slides, false),
             settings_open: false,
             settings_prev: None,

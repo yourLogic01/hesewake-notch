@@ -45,6 +45,9 @@ pub(crate) struct Settings {
     pub(crate) prayer_on: bool,
     /// Colour glow at the bottom of the open notch (artwork colours on Music, the accent elsewhere). Off: plain black.
     pub(crate) glow: bool,
+    /// The small notch shows the playing song (artwork, title or lyrics), as it always did. Off: it stays idle (clock /
+    /// eyes) while music plays, and shows lyrics only while the lyrics view is open.
+    pub(crate) notch_song: bool,
     /// Indeks di `scale::SIZES`: 0 = Auto (ikut scaling Windows), selebihnya ukuran tetap.
     pub(crate) notch_size: usize,
     /// Tampilan notch idle: 0 = bergantian jam/mata (10/15 menit), 1 = jam saja, 2 = mata saja.
@@ -79,6 +82,7 @@ impl Default for Settings {
             weather_city: 0,
             prayer_on: true,
             glow: true,
+            notch_song: true,
             notch_size: 0,
             idle_display: 0,
             accent: 0,
@@ -110,6 +114,7 @@ impl Settings {
                 "weather" => s.weather_on = flag,
                 "prayer" => s.prayer_on = flag,
                 "glow" => s.glow = flag,
+                "notch_song" => s.notch_song = flag,
                 "monitor" => {
                     if let Ok(n) = v.parse::<usize>() {
                         s.monitor = n.min(32);
@@ -157,7 +162,7 @@ impl Settings {
 
     pub(crate) fn serialize(&self) -> String {
         format!(
-            "minimal={}\nnotifications={}\nbusy_on_maximized={}\nlyric_lead_ms={}\nromaji_lyrics={}\nnotif_avatar={}\nlock_toast={}\nprivacy_dot={}\nslide_hotkeys={}\nhud_volume={}\nhud_brightness={}\nweather={}\nweather_city={}\nprayer={}\nglow={}\nmonitor={}\nnotch_size={}\nidle_display={}\naccent={}\nlang={}\nslides={}\n",
+            "minimal={}\nnotifications={}\nbusy_on_maximized={}\nlyric_lead_ms={}\nromaji_lyrics={}\nnotif_avatar={}\nlock_toast={}\nprivacy_dot={}\nslide_hotkeys={}\nhud_volume={}\nhud_brightness={}\nweather={}\nweather_city={}\nprayer={}\nglow={}\nnotch_song={}\nmonitor={}\nnotch_size={}\nidle_display={}\naccent={}\nlang={}\nslides={}\n",
             self.minimal as u8,
             self.notifications as u8,
             self.busy_on_maximized as u8,
@@ -173,6 +178,7 @@ impl Settings {
             self.weather_city,
             self.prayer_on as u8,
             self.glow as u8,
+            self.notch_song as u8,
             self.monitor,
             self.notch_size,
             self.idle_display,

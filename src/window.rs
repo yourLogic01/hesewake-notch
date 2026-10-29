@@ -96,6 +96,19 @@ unsafe fn wndproc_inner(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT
             // Press inside the note card while editing: caret placement / drag-selection,
             // not a swipe or a click on the slide.
             let shift = (GetKeyState(VK_SHIFT.0 as i32) as u16 & 0x8000) != 0;
+            // the volume button / pill on the Music slide
+            let mut on_vol = false;
+            with_app(|a| {
+                if a.vol_mouse_down(x, y) {
+                    on_vol = true;
+                    a.last = Instant::now();
+                    present(a);
+                    schedule(a);
+                }
+            });
+            if on_vol {
+                return LRESULT(0);
+            }
             let mut in_note = false;
             with_app(|a| {
                 in_note = a.note_mouse_down(x, y, shift);
@@ -132,6 +145,11 @@ unsafe fn wndproc_inner(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT
             let y = ((lp.0 >> 16) & 0xffff) as i16 as f32 / k;
             let mut start: Option<(usize, String)> = None;
             with_app(|a| {
+                if a.vol_drag {
+                    a.vol_mouse_drag(x);
+                    present(a);
+                    return;
+                }
                 // Drag-selecting text in the note: extend the selection (scrolls with the caret).
                 if a.nv.sel_drag {
                     a.note_mouse_drag(x, y);
@@ -184,6 +202,10 @@ unsafe fn wndproc_inner(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT
             with_app(|a| {
                 a.shelf_drag = None;
                 a.nv.sel_drag = false;
+                if a.vol_drag {
+                    a.vol_drag = false;
+                    schedule(a);
+                }
                 if let Some((sx, sy)) = a.drag.take() {
                     let dx = a.drag_dx;
                     a.drag_dx = 0.0;
@@ -220,7 +242,7 @@ unsafe fn wndproc_inner(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT
                     let mut p = POINT::default();
                     if GetCursorPos(&mut p).is_ok() {
                         let (x, y) = ((p.x - a.wx) as f32 / a.scale, (p.y - a.wy) as f32 / a.scale);
-                        if in_rect(x, y, MX - 10.0, 100.0, MW + 20.0, 56.0) {
+                        if in_rect(x, y, MX - 10.0, 100.0, MW + 20.0, 46.0) || a.vol_hovered() {
                             if let Some((vol, muted)) = audio::adjust(audio::wheel_step(d)) {
                                 // Notch sedang terbuka: indikator di dalam slide (toast dibatalkan saat hover).
                                 a.vol_state = ((vol * 100.0).round() as u8, muted);

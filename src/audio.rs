@@ -118,7 +118,6 @@ fn endpoint() -> Option<IAudioEndpointVolume> {
 }
 
 /// (volume 0..1, bisu).
-#[allow(dead_code)]
 pub(crate) fn get() -> Option<(f32, bool)> {
     let ep = endpoint()?;
     unsafe { Some((ep.GetMasterVolumeLevelScalar().ok()?, ep.GetMute().ok()?.as_bool())) }
@@ -139,6 +138,33 @@ pub(crate) fn adjust(delta: f32) -> Option<(f32, bool)> {
         // perubahan dari kita sendiri tidak perlu dilaporkan ulang oleh callback
         LAST.store(pack((new * 100.0).round() as u8, muted), Ordering::Relaxed);
         Some((new, muted))
+    }
+}
+
+/// Set the volume to `level` (0..1); a level above 0 also unmutes. Returns the new state.
+pub(crate) fn set(level: f32) -> Option<(f32, bool)> {
+    let ep = endpoint()?;
+    unsafe {
+        let new = level.clamp(0.0, 1.0);
+        ep.SetMasterVolumeLevelScalar(new, std::ptr::null()).ok()?;
+        if new > 0.0 && ep.GetMute().ok()?.as_bool() {
+            ep.SetMute(false, std::ptr::null()).ok()?;
+        }
+        let muted = ep.GetMute().ok()?.as_bool();
+        LAST.store(pack((new * 100.0).round() as u8, muted), Ordering::Relaxed);
+        Some((new, muted))
+    }
+}
+
+/// Mute or unmute. Returns the new state.
+pub(crate) fn toggle_mute() -> Option<(f32, bool)> {
+    let ep = endpoint()?;
+    unsafe {
+        let muted = !ep.GetMute().ok()?.as_bool();
+        ep.SetMute(muted, std::ptr::null()).ok()?;
+        let vol = ep.GetMasterVolumeLevelScalar().ok()?;
+        LAST.store(pack((vol * 100.0).round() as u8, muted), Ordering::Relaxed);
+        Some((vol, muted))
     }
 }
 

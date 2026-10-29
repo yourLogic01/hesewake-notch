@@ -27,6 +27,7 @@ pub(crate) enum Opt {
     City,
     Prayer,
     Glow,
+    NotchSong,
     Accent,
     /// Toggle once the dictionary is there, a download button before that.
     Romaji,
@@ -51,6 +52,7 @@ impl App {
             Opt::Weather => self.cfg.weather_on,
             Opt::Prayer => self.cfg.prayer_on,
             Opt::Glow => self.cfg.glow,
+            Opt::NotchSong => self.cfg.notch_song,
             Opt::Romaji => self.cfg.romaji_lyrics,
             _ => false,
         }
@@ -122,6 +124,7 @@ impl App {
                 self.prayer_refresh();
             }
             Opt::Glow => self.cfg.glow = !self.cfg.glow,
+            Opt::NotchSong => self.cfg.notch_song = !self.cfg.notch_song,
             Opt::Romaji => {
                 if romaji::available() {
                     self.cfg.romaji_lyrics = !self.cfg.romaji_lyrics;
