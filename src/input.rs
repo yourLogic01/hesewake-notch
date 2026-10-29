@@ -30,7 +30,7 @@ pub(crate) unsafe fn click(x: f32, y: f32) {
             if let Some(hit) = a.dock_hit(x, y) {
                 match hit {
                     dock::DockHit::Slide(i) => a.show(i),
-                    dock::DockHit::Gear => a.open_settings(),
+                    dock::DockHit::Gear => a.open_settings_window(),
                 }
                 a.last = Instant::now();
                 present(a);

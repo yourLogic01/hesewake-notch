@@ -84,6 +84,7 @@ mod notif;
 mod notif_img;
 mod notifview;
 mod note;
+mod opts;
 mod pace;
 mod perf;
 mod prayer;
@@ -93,6 +94,7 @@ mod romaji;
 mod scale;
 mod settings;
 mod settingsview;
+mod settingswin;
 mod shelf;
 mod slides;
 #[cfg(test)]
@@ -272,6 +274,8 @@ struct App {
     weather_idx: u64,
     /// Pointer position over the notch (logical px); pointing at the nav dots opens the icon dock (dock.rs).
     mouse: (f32, f32),
+    /// The floating Settings window (settingswin.rs).
+    sw: settingswin::Win,
 }
 
 static APP: Mutex<Option<App>> = Mutex::new(None);
@@ -614,6 +618,7 @@ fn main() -> Result<()> {
             sys_ui: sysview::SysUi::new(),
             weather_idx: 0,
             mouse: (-1.0, -1.0),
+            sw: settingswin::Win::new(),
             cfg,
         };
         app.prayer_refresh();

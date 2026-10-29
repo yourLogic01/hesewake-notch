@@ -140,6 +140,7 @@ fn test_app(s: f32) -> App {
         sys_ui: sysview::SysUi::new(),
         weather_idx: 0,
         mouse: (-1.0, -1.0),
+        sw: settingswin::Win::new(),
         cfg,
     }
 }
@@ -1043,4 +1044,75 @@ fn dock_springs_open_and_clicks_land() {
     assert_eq!(anim::target(&a).1, EXP_H);
     a.h = EXP_H;
     assert_eq!(a.dock_hit(a.dock_x(todo), dock::DOCK_Y), None);
+}
+
+/// Draw the Settings window on page `sec` and save it as `<name>@100.png` when asked.
+fn sw_shot(name: &str, setup: impl FnOnce(&mut App)) -> App {
+    let mut a = test_app(1.0);
+    setup(&mut a);
+    settingswin::render(&mut a);
+    let pm = settingswin::canvas(&a).expect("canvas");
+    assert_eq!((pm.width(), pm.height()), (820, 560), "{name}");
+    if let Some(dir) = std::env::var_os("SNAPSHOT_DIR") {
+        std::fs::create_dir_all(&dir).expect("create snapshot folder");
+        pm.save_png(std::path::Path::new(&dir).join(format!("{name}@100.png"))).expect("save png");
+    }
+    a
+}
+
+#[test]
+fn snap_settings_window() {
+    for (i, sec) in settingswin::SECS.iter().enumerate() {
+        let a = sw_shot(&format!("settingswin-{i}-{sec:?}").to_lowercase(), |a| a.sw_show_page(i));
+        assert!(settingswin::hit_center(&a, settingswin::Hit::Nav(i)).is_some(), "{sec:?}: sidebar item");
+        assert!(settingswin::hit_center(&a, settingswin::Hit::Close).is_some());
+    }
+    let _lang = i18n::restore_on_drop();
+    i18n::set(i18n::ID);
+    for i in [0, 1, 2, 9] {
+        sw_shot(&format!("settingswin-{i}-id"), |a| {
+            a.cfg.lang = i18n::ID;
+            a.sw_show_page(i);
+        });
+    }
+    sw_shot("settingswin-1-eyes-purple", |a| {
+        a.sw_show_page(1);
+        a.cfg.idle_display = 2;
+        a.cfg.accent = 1;
+        a.cfg.notch_size = 3;
+    });
+}
+
+#[test]
+fn settings_window_controls_land_on_their_setting() {
+    use opts::Opt;
+    use settingswin::Hit;
+    let page = |name: &str| settingswin::SECS.iter().position(|s| format!("{s:?}") == name).unwrap();
+
+    let mut a = sw_shot("settingswin-test-look", |a| a.sw_show_page(page("Look")));
+    let (x, y) = settingswin::hit_center(&a, Hit::Press(Opt::Minimal)).expect("minimal toggle");
+    assert_eq!(a.sw_hit(x, y), Some(Hit::Press(Opt::Minimal)));
+    a.opt_press(Opt::Minimal);
+    assert!(a.minimal);
+    let (x, y) = settingswin::hit_center(&a, Hit::Pick(Opt::Accent, 3)).expect("orange swatch");
+    assert_eq!(a.sw_hit(x, y), Some(Hit::Pick(Opt::Accent, 3)));
+    a.opt_pick(Opt::Accent, 3);
+    assert_eq!(a.cfg.accent, 3);
+    for i in 0..3 {
+        assert!(settingswin::hit_center(&a, Hit::Pick(Opt::IdleDisplay, i)).is_some(), "idle display choice {i}");
+    }
+    assert!(settingswin::hit_center(&a, Hit::Pick(Opt::NotchSize, 5)).is_some(), "200%");
+
+    // the slide list is taller than the window: it scrolls, and the first slide can't move up
+    let mut a = sw_shot("settingswin-test-slides", |a| a.sw_show_page(page("Slides")));
+    assert!(settingswin::content_h(&a) > 560.0);
+    assert!(settingswin::hit_center(&a, Hit::SlideMove(0, true)).is_none());
+    assert!(settingswin::hit_center(&a, Hit::SlideMove(0, false)).is_some());
+    let first = a.cfg.slides[0].0;
+    a.slide_swap(0, 1);
+    assert_eq!(a.cfg.slides[1].0, first);
+
+    let a = sw_shot("settingswin-test-weather", |a| a.sw_show_page(page("Weather")));
+    assert!(settingswin::hit_center(&a, Hit::Step(Opt::City, true)).is_some());
+    assert!(settingswin::hit_center(&a, Hit::Press(Opt::Prayer)).is_some());
 }

@@ -2,7 +2,7 @@
 //! naik/turun (dua sel bertukar tempat dengan animasi), pengaturan tersimpan langsung ke `settings.txt`.
 
 use super::*;
-use crate::settings::{LEAD_MAX, LEAD_MIN, LEAD_STEP};
+use crate::opts::Opt;
 use crate::slides::SlideId;
 
 const TAB_Y: f32 = 8.0;
@@ -35,9 +35,9 @@ pub(crate) struct SettingsUi {
     /// Dua indeks slide yang baru bertukar tempat (animasi geser).
     swap: Option<(usize, usize, Instant)>,
     /// Status autostart di-cache (registry dibaca saat tab Features dibuka, bukan tiap frame).
-    autostart: bool,
+    pub(crate) autostart: bool,
     /// Tombol Delete kamus romaji ditekan sekali: tekan lagi dalam `CONFIRM_SECS` untuk benar-benar menghapus.
-    dict_confirm: Option<Instant>,
+    pub(crate) dict_confirm: Option<Instant>,
     /// Settings > Slides: rows scrolled out of view at the top.
     pub(crate) slides_scroll: usize,
 }
@@ -48,7 +48,7 @@ impl SettingsUi {
         SettingsUi { tab: 0, tab_t0: old, tab_dir: 1.0, knob: [0.0; MAX_ROWS], kvel: [0.0; MAX_ROWS], entered: false, enter_t: old, swap: None, autostart: false, dict_confirm: None, slides_scroll: 0 }
     }
 
-    fn dict_confirming(&self) -> bool {
+    pub(crate) fn dict_confirming(&self) -> bool {
         self.dict_confirm.map_or(false, |t| t.elapsed().as_secs_f32() < CONFIRM_SECS)
     }
 }
@@ -200,6 +200,17 @@ pub(crate) fn stepper_fit(g: &mut Gfx, r: &Row, value: &str) -> StepperFit {
     StepperFit { minus_x: STEP_PLUS_X - max_span, size, value: fit(g, value, size, true, max_span - 2.0 * STEP_SIDE) }
 }
 
+/// The setting behind each row of Settings tabs 1..4, in the same order as `settings_rows`.
+fn tab_opts(tab: u8) -> &'static [Opt] {
+    match tab {
+        1 => &[Opt::Minimal, Opt::BusyOnMax, Opt::Monitor, Opt::LyricLead, Opt::NotchSize, Opt::IdleDisplay],
+        2 => &[Opt::Notifications, Opt::NotifAvatar, Opt::Autostart, Opt::SlideHotkeys, Opt::Lang, Opt::Calendar],
+        3 => &[Opt::HudVolume, Opt::HudBrightness, Opt::LockToast, Opt::PrivacyDot],
+        4 => &[Opt::Weather, Opt::City, Opt::Prayer, Opt::Accent, Opt::Romaji, Opt::RomajiDict],
+        _ => &[],
+    }
+}
+
 impl App {
     /// Buka slide Settings (dari item menu): ditambahkan ke carousel lalu langsung ditampilkan.
     pub(crate) fn open_settings(&mut self) {
@@ -235,7 +246,7 @@ impl App {
     }
 
     /// Terapkan pengaturan cuaca (nyala/mati, kota) ke thread pengambil data.
-    fn weather_apply(&self) {
+    pub(crate) fn weather_apply(&self) {
         let (_, lat, lon) = weather::CITIES[self.cfg.weather_city];
         weather::configure(self.cfg.weather_on, lat, lon);
     }
@@ -409,24 +420,34 @@ impl App {
             // dari kanan ke kiri di dalam sel: toggle, turun, naik
             let (tgx, dnx, upx) = (cx + SC_W - 34.0, cx + SC_W - 50.0, cx + SC_W - 66.0);
             if x >= tgx {
-                let enabled = self.cfg.slides.iter().filter(|(_, on)| *on).count();
-                // minimal satu slide harus tetap aktif
-                if !(self.cfg.slides[i].1 && enabled <= 1) {
-                    self.cfg.slides[i].1 = !self.cfg.slides[i].1;
-                    self.slides_changed();
-                }
+                self.slide_toggle(i);
             } else if x >= dnx && i + 1 < self.cfg.slides.len() {
-                self.cfg.slides.swap(i, i + 1);
+                self.slide_swap(i, i + 1);
                 self.sui.swap = Some((i, i + 1, Instant::now()));
                 self.slides_keep_visible(i + 1);
-                self.slides_changed();
             } else if x >= upx && i > 0 {
-                self.cfg.slides.swap(i, i - 1);
+                self.slide_swap(i - 1, i);
                 self.sui.swap = Some((i - 1, i, Instant::now()));
                 self.slides_keep_visible(i - 1);
-                self.slides_changed();
             }
             return;
+        }
+    }
+
+    /// Show or hide slide `i` of the slide list; at least one slide stays on. Saves.
+    pub(crate) fn slide_toggle(&mut self, i: usize) {
+        let enabled = self.cfg.slides.iter().filter(|(_, on)| *on).count();
+        if i < self.cfg.slides.len() && !(self.cfg.slides[i].1 && enabled <= 1) {
+            self.cfg.slides[i].1 = !self.cfg.slides[i].1;
+            self.slides_changed();
+        }
+    }
+
+    /// Swap slides `i` and `j` in the carousel order. Saves.
+    pub(crate) fn slide_swap(&mut self, i: usize, j: usize) {
+        if i < self.cfg.slides.len() && j < self.cfg.slides.len() && i != j {
+            self.cfg.slides.swap(i, j);
+            self.slides_changed();
         }
     }
 
@@ -451,130 +472,13 @@ impl App {
                 }
                 RowKind::Toggle(_) | RowKind::Button(_) => (x > cx + CELL_W - 92.0, x > cx + CELL_W - 46.0),
             };
-            match (tab, i) {
-                (1, 0) => self.minimal = !self.minimal,
-                (1, 1) => self.cfg.busy_on_maximized = !self.cfg.busy_on_maximized,
-                (1, 2) => {
-                    if right {
-                        self.cfg.monitor = monitors::step_mode(self.cfg.monitor, plus);
-                        self.place(true);
-                    }
-                }
-                (1, 3) => {
-                    if right {
-                        let d = if plus { LEAD_STEP } else { -LEAD_STEP };
-                        self.cfg.lyric_lead_ms = (self.cfg.lyric_lead_ms + d).clamp(LEAD_MIN, LEAD_MAX);
-                    }
-                }
-                (1, 4) => {
-                    if right {
-                        let last = scale::SIZES.len() - 1;
-                        self.cfg.notch_size = if plus { (self.cfg.notch_size + 1).min(last) } else { self.cfg.notch_size.saturating_sub(1) };
-                        self.place(true);
-                    }
-                }
-                (1, 5) => {
-                    if right {
-                        let last = settings::IDLE_DISPLAY_LABELS.len() - 1;
-                        self.cfg.idle_display = if plus { (self.cfg.idle_display + 1).min(last) } else { self.cfg.idle_display.saturating_sub(1) };
-                        self.cur_phase = self.idle_phase();
-                        self.eye = EyeAnim::new();
-                    }
-                }
-                (2, 0) => {
-                    self.notif_on = !self.notif_on;
-                    notif::set_enabled(self.notif_on);
-                    if self.notif_on {
-                        if !self.notif_started {
-                            self.notif_started = true;
-                            notif::start(self.hwnd, self.notif_slot.clone());
-                        }
-                    } else {
-                        self.notifs.clear();
-                    }
-                }
-                (2, 1) => {
-                    self.cfg.notif_avatar = !self.cfg.notif_avatar;
-                    notif::set_avatar(self.cfg.notif_avatar);
-                }
-                (2, 2) => {
-                    sys::set_autostart(!self.sui.autostart);
-                    self.sui.autostart = sys::autostart_enabled();
-                }
-                (2, 3) => {
-                    self.cfg.slide_hotkeys = !self.cfg.slide_hotkeys;
-                    hotkeys::set_slide_hotkeys(self.hwnd, self.cfg.slide_hotkeys);
-                }
-                (2, 4) => {
-                    if right {
-                        self.cfg.lang = i18n::step(self.cfg.lang, plus);
-                        i18n::set(self.cfg.lang);
-                    }
-                }
-                (2, 5) => {
-                    if right {
-                        let clip = calendar::clipboard_text(self.hwnd);
-                        self.cal_button(clip);
-                    }
-                }
-                (3, 0) => self.cfg.hud_volume = !self.cfg.hud_volume,
-                (3, 1) => self.cfg.hud_brightness = !self.cfg.hud_brightness,
-                (3, 2) => {
-                    self.cfg.lock_toast = !self.cfg.lock_toast;
-                    keys::set_enabled(self.hwnd, self.cfg.lock_toast);
-                }
-                (3, 3) => {
-                    self.cfg.privacy_dot = !self.cfg.privacy_dot;
-                    privacy::set_enabled(self.cfg.privacy_dot);
-                    self.priv_t = Instant::now();
-                }
-                (4, 0) => {
-                    self.cfg.weather_on = !self.cfg.weather_on;
-                    self.weather_apply();
-                }
-                (4, 1) => {
-                    if right {
-                        let n = weather::CITIES.len();
-                        self.cfg.weather_city = if plus { (self.cfg.weather_city + 1) % n } else { (self.cfg.weather_city + n - 1) % n };
-                        self.weather_apply();
-                        self.prayer_refresh();
-                    }
-                }
-                (4, 2) => {
-                    self.cfg.prayer_on = !self.cfg.prayer_on;
-                    self.prayer_refresh();
-                }
-                (4, 3) => {
-                    if right {
-                        self.cfg.accent = accent::step(self.cfg.accent, plus);
-                    }
-                }
-                (4, 4) => {
-                    if romaji::available() {
-                        self.cfg.romaji_lyrics = !self.cfg.romaji_lyrics;
-                        romaji::set_enabled(self.cfg.romaji_lyrics);
-                        self.romaji_refresh();
-                    } else if right {
-                        dict::start(self.hwnd);
-                    }
-                }
-                (4, 5) => {
-                    if right {
-                        if !self.sui.dict_confirming() {
-                            self.sui.dict_confirm = Some(Instant::now());
-                        } else {
-                            self.sui.dict_confirm = None;
-                            if dict::remove() {
-                                self.cfg.romaji_lyrics = false;
-                                romaji::set_enabled(false);
-                                self.romaji_refresh();
-                            }
-                        }
-                    }
-                }
+            let Some(&o) = tab_opts(tab).get(i) else { return };
+            match r.kind {
+                RowKind::Toggle(_) => self.opt_press(o),
+                RowKind::Stepper(_) if right => self.opt_step(o, plus),
+                RowKind::Button(_) if right => self.opt_press(o),
                 _ => {}
             }
-            self.save_settings();
             return;
         }
     }

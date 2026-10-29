@@ -402,7 +402,7 @@ impl App {
             } else if self.cal_status == CalStatus::Loading {
                 (tr("Loading your calendar\u{2026}"), String::new())
             } else if self.cal_status == CalStatus::Failed && self.cal.is_empty() {
-                (tr("Couldn't load your calendar"), tr("Check the link in Settings \u{203a} Features").to_string())
+                (tr("Couldn't load your calendar"), tr("Check the link in Settings \u{203a} Calendar").to_string())
             } else {
                 let next = self.cal.iter().filter(|e| e.start >= now).min_by_key(|e| e.start).map(|e| {
                     let eday = (e.start + off as i64).div_euclid(DAY);

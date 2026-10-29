@@ -638,7 +638,7 @@ unsafe fn run_command(hwnd: HWND, cmd: i32) {
                 a.save_settings();
             }
             sys::CMD_ABOUT => show_about = true,
-            sys::CMD_SETTINGS => a.open_settings(),
+            sys::CMD_SETTINGS => a.open_settings_window(),
             sys::CMD_NOTIF => {
                 a.notif_on = !a.notif_on;
                 notif::set_enabled(a.notif_on);

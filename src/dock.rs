@@ -146,6 +146,17 @@ impl App {
     }
 }
 
+/// Extra outline icons for the Settings window sidebar (`Gfx::icon_outline`).
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub(crate) enum OutlineIcon {
+    Palette,
+    Monitor,
+    Layers,
+    Speaker,
+    Cloud,
+    Info,
+}
+
 /// Outline icons in a unit box (-1..1 on both axes), drawn with round caps like the rest of the dock.
 struct Pen<'a, 'p> {
     g: &'a mut Gfx,
@@ -240,6 +251,56 @@ impl Gfx {
         }
         pen.polyline(&pts, true);
         pen.circle(0.0, 0.0, 0.26);
+    }
+
+    /// The Settings window's sidebar icons, in the same outline style as the dock.
+    pub(crate) fn icon_outline(&mut self, kind: OutlineIcon, cx: f32, cy: f32, s: f32, p: &Paint) {
+        let mut pen = Pen { g: self, cx, cy, h: s / 2.0, p };
+        match kind {
+            OutlineIcon::Palette => {
+                pen.circle(0.0, 0.0, 0.9);
+                pen.dot(-0.42, 0.05, 0.13);
+                pen.dot(-0.18, -0.42, 0.13);
+                pen.dot(0.32, -0.36, 0.13);
+                pen.circle(0.3, 0.38, 0.2);
+            }
+            OutlineIcon::Monitor => {
+                pen.rrect(-0.95, -0.8, 1.9, 1.25, 0.2);
+                pen.polyline(&[(0.0, 0.45), (0.0, 0.85)], false);
+                pen.polyline(&[(-0.42, 0.88), (0.42, 0.88)], false);
+            }
+            OutlineIcon::Layers => {
+                pen.polyline(&[(0.0, -0.9), (0.95, -0.4), (0.0, 0.1), (-0.95, -0.4)], true);
+                pen.polyline(&[(-0.95, 0.05), (0.0, 0.55), (0.95, 0.05)], false);
+                pen.polyline(&[(-0.95, 0.48), (0.0, 0.98), (0.95, 0.48)], false);
+            }
+            OutlineIcon::Speaker => {
+                pen.polyline(&[(-0.9, -0.3), (-0.5, -0.3), (0.0, -0.8), (0.0, 0.8), (-0.5, 0.3), (-0.9, 0.3)], true);
+                let arc = |r: f32| -> Vec<(f32, f32)> {
+                    (0..=8).map(|i| {
+                        let a = -0.75 + 1.5 * i as f32 / 8.0;
+                        (0.05 + a.cos() * r, a.sin() * r)
+                    }).collect()
+                };
+                pen.polyline(&arc(0.42), false);
+                pen.polyline(&arc(0.82), false);
+            }
+            OutlineIcon::Cloud => {
+                let mut pts = Vec::new();
+                for (ox, oy, r, a0, a1) in [(-0.45, 0.2, 0.42, 1.57, 3.9), (0.02, -0.18, 0.55, 3.6, 6.0), (0.5, 0.18, 0.44, 5.0, 7.85)] {
+                    for i in 0..=8 {
+                        let a = a0 + (a1 - a0) * i as f32 / 8.0;
+                        pts.push((ox + a.cos() * r, oy + a.sin() * r));
+                    }
+                }
+                pen.polyline(&pts, true);
+            }
+            OutlineIcon::Info => {
+                pen.circle(0.0, 0.0, 0.9);
+                pen.polyline(&[(0.0, -0.05), (0.0, 0.5)], false);
+                pen.dot(0.0, -0.42, 0.12);
+            }
+        }
     }
 
     /// The dock icon for a slide (outline style, `s` = box size in px).

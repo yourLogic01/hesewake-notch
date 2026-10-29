@@ -1,7 +1,7 @@
 //! Registri slide: identitas slide, urutan tampil, dan penyimpanannya di `settings.txt`.
 
 /// Identitas slide. Slide baru ditambahkan di sini (dan di `USER`) agar bisa diatur dari Settings.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum SlideId {
     Music,
     Water,
