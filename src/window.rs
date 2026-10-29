@@ -149,6 +149,10 @@ unsafe fn wndproc_inner(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT
                         a.drag_dx = 0.0;
                     }
                 }
+                if a.set_mouse(x, y) {
+                    present(a);
+                    schedule(a);
+                }
                 if let Some((sx, _)) = a.drag {
                     let dx = x - sx;
                     let nd = if dx.abs() > 8.0 { dx } else { 0.0 };

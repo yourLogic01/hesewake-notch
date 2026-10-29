@@ -143,6 +143,7 @@ fn test_app(s: f32) -> App {
         sui: settingsview::SettingsUi::new(),
         sys_ui: sysview::SysUi::new(),
         weather_idx: 0,
+        mouse: (-1.0, -1.0),
         cfg,
     }
 }
@@ -1278,4 +1279,56 @@ fn lyric_mode_credits_the_source() {
             });
         }
     }
+}
+
+/// The dock already sprung open with the pointer on its icon row at `x` (`None`: in the zone, but on no icon).
+fn dock_open(a: &mut App, id: SlideId, x: Option<SlideId>) {
+    open_slide(a, id);
+    a.h = EXP_H + DOCK_GROW;
+    let x = match x {
+        Some(on) => a.dock_x(a.order.iter().position(|&s| s == on).unwrap()),
+        None => CX - 155.0,
+    };
+    a.mouse = (x, dock::DOCK_Y);
+}
+
+#[test]
+fn snap_dock() {
+    for s in SCALES {
+        shot("dock-music", s, |a| dock_open(a, SlideId::Music, None));
+    }
+    shot("dock-hover-todo", 1.0, |a| dock_open(a, SlideId::Todo, Some(SlideId::Water)));
+    shot("dock-closed-todo", 1.0, |a| open_slide(a, SlideId::Todo));
+    shot("dock-settings-open", 1.0, |a| {
+        a.open_settings();
+        dock_open(a, SlideId::Settings, None);
+    });
+}
+
+#[test]
+fn dock_springs_open_and_clicks_land() {
+    let mut a = test_app(1.0);
+    open_slide(&mut a, SlideId::Music);
+    a.h = EXP_H;
+    // pointer on the dot row: the notch grows to make room for the icons
+    a.mouse = (CX, EXP_H - 11.0);
+    assert_eq!(anim::target(&a).1, EXP_H + DOCK_GROW);
+    a.h = EXP_H + DOCK_GROW;
+    let todo = a.order.iter().position(|&s| s == SlideId::Todo).unwrap();
+    assert_eq!(a.dock_hit(a.dock_x(todo), dock::DOCK_Y), Some(dock::DockHit::Slide(todo)));
+    let gear = a.dock_x(a.order.len() - 1) + 26.0 + 12.0;
+    assert_eq!(a.dock_hit(gear, dock::DOCK_Y), Some(dock::DockHit::Gear));
+    assert_eq!(a.dock_hit(a.dock_x(todo), 60.0), None);
+    // a press does not close the dock (that used to swallow clicks); a swipe does
+    a.mouse = (a.dock_x(todo), dock::DOCK_Y);
+    a.drag = Some(a.mouse);
+    assert_eq!(anim::target(&a).1, EXP_H + DOCK_GROW);
+    a.drag_dx = 30.0;
+    assert_eq!(anim::target(&a).1, EXP_H);
+    // pointer back up in the slide: the notch shrinks back, and once it has, clicks go to the dots again
+    (a.drag, a.drag_dx) = (None, 0.0);
+    a.mouse.1 = 80.0;
+    assert_eq!(anim::target(&a).1, EXP_H);
+    a.h = EXP_H;
+    assert_eq!(a.dock_hit(a.dock_x(todo), dock::DOCK_Y), None);
 }

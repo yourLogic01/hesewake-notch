@@ -2,9 +2,12 @@
 
 // ---------------------------------------------------------------- config
 pub(crate) const W: i32 = 540;
-pub(crate) const H: i32 = 192; // +12 px ruang transparan untuk gelombang saat drop
+/// +12 px ruang transparan untuk gelombang saat drop, + `DOCK_GROW` untuk notch yang memanjang saat dock ikon terbuka.
+pub(crate) const H: i32 = 192 + DOCK_GROW as i32;
 pub(crate) const EXP_W: f32 = 500.0;
 pub(crate) const EXP_H: f32 = 172.0;
+/// Extra height of the expanded notch while the icon dock is open (dock.rs).
+pub(crate) const DOCK_GROW: f32 = 36.0;
 pub(crate) const CX: f32 = 270.0;
 pub(crate) const CL: f32 = 20.0;
 pub(crate) const LX: f32 = CL + 48.0;

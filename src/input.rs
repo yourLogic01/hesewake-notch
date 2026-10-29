@@ -26,6 +26,18 @@ pub(crate) unsafe fn click(x: f32, y: f32) {
             schedule(a);
             return;
         }
+        if !a.editing && !lm {
+            if let Some(hit) = a.dock_hit(x, y) {
+                match hit {
+                    dock::DockHit::Slide(i) => a.show(i),
+                    dock::DockHit::Gear => a.open_settings(),
+                }
+                a.last = Instant::now();
+                present(a);
+                schedule(a);
+                return;
+            }
+        }
         if y >= EXP_H - 22.0 && !a.editing && !lm {
             for i in 0..a.n_slides() {
                 if (x - dot_x(i, a.n_slides())).abs() < 8.0 {

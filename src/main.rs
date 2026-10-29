@@ -63,6 +63,7 @@ mod clock;
 mod config;
 mod data;
 mod dict;
+mod dock;
 mod dragdrop;
 mod eye;
 mod gfx;
@@ -113,7 +114,7 @@ use anim::{schedule, target, tick};
 use busy::{is_busy};
 use clock::{CLOCK_FADE_IN, now_tm, today};
 use i18n::{fill, tr};
-use config::{ACCENT, TEXT_DIM, TEXT_FAINT, CL, CW, CX, DROP_AMP, DROP_ANIM_SECS, EXP_H, EXP_W, H, IDLE, LYRIC_SIZE, LX, NAVY, PLAYING, RX, THIN, W};
+use config::{ACCENT, TEXT_DIM, TEXT_FAINT, CL, CW, CX, DOCK_GROW, DROP_AMP, DROP_ANIM_SECS, EXP_H, EXP_W, H, IDLE, LYRIC_SIZE, LX, NAVY, PLAYING, RX, THIN, W};
 use data::{data_path, migrate_old_data, trim_memory, write_data};
 use eye::{EYE_REST_MS, EyeAnim, HOTKEY_ID, HOTKEY_PLAIN_H, IDLE_CYCLE_SECS, IdlePhase, SPLASH_FADE, SPLASH_SECS, build_eye_paths, splash_tick, toggle_idle_phase};
 use gfx::{Box4, Gfx, acc, dummy_path, ellipsize, in_rect, notch_path, paint, pixmap_from_rgba, decode_limited, rrect, ty, union_box, wrap_lines};
@@ -278,6 +279,8 @@ struct App {
     sys_ui: sysview::SysUi,
     /// Indeks tahap cuaca terakhir yang digambar (memicu transisi suhu <-> ikon).
     weather_idx: u64,
+    /// Pointer position over the notch (logical px); pointing at the nav dots opens the icon dock (dock.rs).
+    mouse: (f32, f32),
 }
 
 static APP: Mutex<Option<App>> = Mutex::new(None);
@@ -627,6 +630,7 @@ fn main() -> Result<()> {
             sui: settingsview::SettingsUi::new(),
             sys_ui: sysview::SysUi::new(),
             weather_idx: 0,
+            mouse: (-1.0, -1.0),
             cfg,
         };
         app.prayer_refresh();

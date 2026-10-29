@@ -66,18 +66,4 @@ impl App {
         g.line(rx - 2.5, ry - 5.5, rx + 2.5, ry, 2.2, &wh);
         g.line(rx + 2.5, ry, rx - 2.5, ry + 5.5, 2.2, &wh);
     }
-
-    pub(crate) fn draw_dots(&self, g: &mut Gfx, pos: f32, p: f32) {
-        let n = self.n_slides();
-        for i in 0..n {
-            let near = (1.0 - cyc(i as f32 - pos, n).abs()).clamp(0.0, 1.0);
-            let r = 2.3 + 1.2 * near;
-            let a = (0.28 + 0.72 * near) * p;
-            if near > 0.5 {
-                g.circle(dot_x(i, n), EXP_H - 11.0, r, &g.sacc(a));
-            } else {
-                g.circle(dot_x(i, n), EXP_H - 11.0, r, &paint(255, 255, 255, a));
-            }
-        }
-    }
 }

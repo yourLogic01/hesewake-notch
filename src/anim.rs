@@ -5,7 +5,7 @@ use super::*;
 // ---------------------------------------------------------------- animation
 pub(crate) fn target(a: &App) -> (f32, f32) {
     if a.expanded() {
-        (EXP_W, EXP_H)
+        (EXP_W, if a.dock_wanted() { EXP_H + DOCK_GROW } else { EXP_H })
     } else if a.toast.is_some() {
         a.toast_size()
     } else if a.thin() {
@@ -209,7 +209,7 @@ unsafe fn poll(a: &mut App) {
         let mut p = POINT::default();
         if GetCursorPos(&mut p).is_ok() {
             let (zw, zh) = if a.hover || a.expanded() {
-                (EXP_W + 20.0, EXP_H + 8.0)
+                (EXP_W + 20.0, a.h.max(EXP_H) + 8.0)
             } else if a.thin() {
                 (a.w.max(THIN.0) + 60.0, 10.0)
             } else {
@@ -219,6 +219,9 @@ unsafe fn poll(a: &mut App) {
             let y = (p.y - a.wy) as f32 / a.scale;
             // Toast Water punya tombol: hover di atasnya tidak boleh membuka notch (itu membatalkan toast-nya).
             let inside = (x - CX).abs() <= zw / 2.0 && y >= 0.0 && y <= zh && !a.water_toast();
+            if a.set_mouse(x, y) {
+                changed = true;
+            }
             if inside != a.hover {
                 // Pointer masuk tepat di lonceng saat ada yang belum dibaca: buka langsung slide Notifications.
                 let to_notif = inside
