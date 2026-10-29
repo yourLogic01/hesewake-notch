@@ -13,7 +13,7 @@ const ICON: f32 = 13.0;
 const DOT_Y: f32 = EXP_H - 11.0;
 pub(crate) const DOCK_Y: f32 = EXP_H + DOCK_GROW - 22.0;
 /// The pointer zone starts this far up, over the dot row of the expanded notch.
-const ZONE_TOP: f32 = EXP_H - 24.0;
+const ZONE_TOP: f32 = EXP_H - 20.0;
 
 /// What a click on the dock lands on.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -63,7 +63,7 @@ impl App {
     pub(crate) fn dock_wanted(&self) -> bool {
         // A press is not a reason to close, only a real swipe (drag_dx != 0) is. Closing on the press made clicks
         // land on a half-closed dock and get lost.
-        if !self.expanded() || self.editing || self.drag_dx != 0.0 || self.lyric_screen() {
+        if !self.expanded() || self.editing || self.drag_dx != 0.0 || self.lyric_screen() || self.vol_hovered() {
             return false;
         }
         let (mx, my) = self.mouse;

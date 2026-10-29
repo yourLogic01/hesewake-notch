@@ -267,6 +267,8 @@ struct App {
     /// Volume pill on the Music slide: how far it is open (0..1), and whether its bar is being dragged.
     vol_pop: f32,
     vol_drag: bool,
+    /// The last press on a playback button and when (press animation, music.rs).
+    btn_press: Option<(music::MediaBtn, Instant)>,
     order: Vec<SlideId>,
     /// Slide Settings sedang dibuka (ada di carousel) dan slide asal sebelum dibuka.
     settings_open: bool,
@@ -626,6 +628,7 @@ fn main() -> Result<()> {
             vol_state: audio::get().map_or((0, false), |(v, m)| ((v * 100.0).round() as u8, m)),
             vol_pop: 0.0,
             vol_drag: false,
+            btn_press: None,
             order: slides::visible_order(&cfg.slides, false),
             settings_open: false,
             settings_prev: None,

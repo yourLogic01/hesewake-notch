@@ -64,12 +64,16 @@ pub(crate) unsafe fn click(x: f32, y: f32) {
                     a.last = Instant::now();
                     present(a);
                     schedule(a);
-                } else if d(MCX - CTRL_GAP, MCY) < 17.0 {
-                    let _ = a.tx.send(Cmd::Prev);
-                } else if d(MCX, MCY) < 19.0 {
-                    let _ = a.tx.send(Cmd::Toggle);
-                } else if d(MCX + CTRL_GAP, MCY) < 17.0 {
-                    let _ = a.tx.send(Cmd::Next);
+                } else if let Some((b, cmd)) = [(-CTRL_GAP, music::MediaBtn::Prev, Cmd::Prev), (0.0, music::MediaBtn::Play, Cmd::Toggle), (CTRL_GAP, music::MediaBtn::Next, Cmd::Next)]
+                    .into_iter()
+                    .find(|&(dx, b, _)| d(MCX + dx, MCY) < if b == music::MediaBtn::Play { 19.0 } else { 17.0 })
+                    .map(|(_, b, c)| (b, c))
+                {
+                    let _ = a.tx.send(cmd);
+                    a.press(b);
+                    a.last = Instant::now();
+                    present(a);
+                    schedule(a);
                 } else if a.media.dur > 0 && in_rect(x, y, MX, 88.0, MW, 16.0) {
                     let _ = a.tx.send(Cmd::Seek(((x - MX) / MW).clamp(0.0, 1.0)));
                 }

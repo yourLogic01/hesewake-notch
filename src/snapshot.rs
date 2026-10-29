@@ -135,6 +135,7 @@ fn test_app(s: f32) -> App {
         vol_state: (0, false),
         vol_pop: 0.0,
         vol_drag: false,
+        btn_press: None,
         order: slides::visible_order(&cfg.slides, false),
         settings_open: false,
         settings_prev: None,
@@ -1204,6 +1205,17 @@ fn snap_music_volume() {
     }
     shot("music-volume-open", 1.0, |a| music_playing(a, 1.0, (64, false)));
     shot("music-volume-muted", 1.0, |a| music_playing(a, 1.0, (64, true)));
+    shot("music-controls-low", 1.5, |a| music_playing(a, 0.0, (20, false)));
+    // 30 ms after a click on play: the button has dipped, with a halo around it
+    shot("music-play-pressed", 1.5, |a| {
+        music_playing(a, 0.0, (64, false));
+        a.btn_press = Some((music::MediaBtn::Play, Instant::now() - Duration::from_millis(30)));
+    });
+    let mut a = test_app(1.0);
+    assert_eq!(a.press_scale(music::MediaBtn::Play), 1.0);
+    a.press(music::MediaBtn::Play);
+    assert!(a.press_scale(music::MediaBtn::Play) < 0.9, "dips right after the press");
+    assert_eq!(a.press_scale(music::MediaBtn::Next), 1.0, "only the pressed button");
 }
 
 /// The notification bell in the small notch (idle, and with lyrics while a song plays) and on a Settings toggle.
@@ -1242,4 +1254,18 @@ fn notifications_are_read_when_the_slide_is_left() {
     a.hover = false;
     a.notif_ui_step();
     assert_eq!(a.unread_count(), 0, "read after leaving the slide");
+}
+
+/// Pointing at the Music slide's volume button (just above the end of the dot row) opens the volume pill, not the dock.
+#[test]
+fn volume_button_does_not_open_the_dock() {
+    let mut a = test_app(1.0);
+    music_playing(&mut a, 0.0, (50, false));
+    a.h = EXP_H;
+    a.mouse = (music::VOL_X, BTN_Y + 6.0);
+    assert!(a.vol_hovered());
+    assert_eq!(anim::target(&a).1, EXP_H, "the notch does not grow for the dock");
+    // the dots themselves still open it
+    a.mouse = (CX, EXP_H - 11.0);
+    assert_eq!(anim::target(&a).1, EXP_H + DOCK_GROW);
 }

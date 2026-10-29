@@ -20,17 +20,26 @@ pub(crate) const MX: f32 = LX + 104.0;
 pub(crate) const CLOCK_W: f32 = 124.0; // lebar blok jam di kanan (rata kanan di RX)
 pub(crate) const MW: f32 = RX - CLOCK_W - 6.0 - MX; // kolom teks/kontrol berhenti sebelum blok jam
 pub(crate) const MCX: f32 = MX + MW / 2.0;
-pub(crate) const MCY: f32 = 133.0;
-/// One row of five evenly spaced buttons under the progress bar: lyrics, previous, play, next, volume. Lyrics and
-/// volume line up with the two ends of the progress bar.
-const BTN_DX: f32 = MW / 2.0 - 9.0;
-pub(crate) const CTRL_GAP: f32 = BTN_DX / 2.0;
-pub(crate) const BTN_Y: f32 = MCY;
-pub(crate) const LYR_BTN_X: f32 = MCX - BTN_DX;
-pub(crate) const VOL_X: f32 = MCX + BTN_DX;
-/// The volume pill grows to the right out of the volume button, over the date (which fades out meanwhile).
-const VOL_W: f32 = 140.0;
-const VOL_H: f32 = 26.0;
+pub(crate) const MCY: f32 = 128.0;
+/// Previous / next sit `CTRL_GAP` from play.
+pub(crate) const CTRL_GAP: f32 = 56.0;
+/// A row of its own under the playback controls, above the nav dots: the lyrics button under the elapsed time and the
+/// volume button under the total time, i.e. lined up with the two ends of the player column.
+pub(crate) const BTN_Y: f32 = 147.0;
+pub(crate) const LYR_BTN_X: f32 = MX + 8.0;
+pub(crate) const VOL_X: f32 = MX + MW - 8.0;
+/// The volume pill grows to the right out of the volume button, into the free space under the date.
+const VOL_W: f32 = 136.0;
+const VOL_H: f32 = 24.0;
+const PRESS_SECS: f32 = 0.45;
+
+/// The playback buttons, for their press animation.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum MediaBtn {
+    Prev,
+    Play,
+    Next,
+}
 
 #[derive(Clone, Default, PartialEq)]
 pub(crate) struct Media {
@@ -775,6 +784,33 @@ impl App {
         g.txt(label, x + 12.0, y, 11.0, text, al, 140.0);
     }
 
+    /// Remember a press on a playback button (Music slide or lyrics view), for its press animation.
+    pub(crate) fn press(&mut self, b: MediaBtn) {
+        self.btn_press = Some((b, Instant::now()));
+    }
+
+    fn press_t(&self, b: MediaBtn) -> Option<f32> {
+        self.btn_press.filter(|p| p.0 == b).map(|p| p.1.elapsed().as_secs_f32()).filter(|&t| t < PRESS_SECS)
+    }
+
+    /// Size factor of a playback button: dips to 80% when pressed and springs back with a small overshoot.
+    pub(crate) fn press_scale(&self, b: MediaBtn) -> f32 {
+        self.press_t(b).map_or(1.0, |t| 1.0 - 0.2 * (-t * 7.0).exp() * (t * 14.0).cos())
+    }
+
+    /// A soft halo around a pressed playback button, growing as it fades out (wider than the round play button).
+    pub(crate) fn press_halo(&self, g: &mut Gfx, b: MediaBtn, x: f32, y: f32, al: f32) {
+        if let Some(t) = self.press_t(b) {
+            let f = 1.0 - t / PRESS_SECS;
+            let r0 = if b == MediaBtn::Play { 20.0 } else { 15.0 };
+            g.circle(x, y, r0 + 7.0 * (1.0 - f), &paint(255, 255, 255, 0.18 * f * al));
+        }
+    }
+
+    pub(crate) fn press_animating(&self) -> bool {
+        self.btn_press.is_some_and(|p| p.1.elapsed().as_secs_f32() < PRESS_SECS)
+    }
+
     /// Volume changed by scrolling in the last 1.5 s: the volume pill stays open.
     pub(crate) fn vol_overlay_active(&self) -> bool {
         self.expanded() && self.is_slide(SlideId::Music) && self.vol_t.elapsed().as_secs_f32() < 1.5
@@ -786,11 +822,11 @@ impl App {
 
     /// The pill: left edge (just left of the speaker) and the bar inside it, left to right (x0, x1).
     fn vol_pill_x() -> f32 {
-        VOL_X - 16.0
+        VOL_X - 14.0
     }
 
     fn vol_bar() -> (f32, f32) {
-        (VOL_X + 18.0, Self::vol_pill_x() + VOL_W - 42.0)
+        (VOL_X + 16.0, Self::vol_pill_x() + VOL_W - 40.0)
     }
 
     /// The pointer is on the volume button, or on the open pill.
@@ -802,7 +838,7 @@ impl App {
         if self.vol_pop > 0.5 {
             in_rect(x, y, Self::vol_pill_x() - 6.0, BTN_Y - VOL_H / 2.0 - 6.0, VOL_W + 12.0, VOL_H + 12.0)
         } else {
-            (x - VOL_X).abs() < 15.0 && (y - BTN_Y).abs() < 14.0
+            (x - VOL_X).abs() < 13.0 && (y - BTN_Y).abs() < 12.0
         }
     }
 
@@ -840,7 +876,7 @@ impl App {
         if !self.vol_slide_ready() {
             return false;
         }
-        if (x - VOL_X).abs() < 14.0 && (y - BTN_Y).abs() < 14.0 {
+        if (x - VOL_X).abs() < 13.0 && (y - BTN_Y).abs() < 12.0 {
             self.vol_apply(audio::toggle_mute());
             return true;
         }
@@ -870,7 +906,7 @@ impl App {
         let x = VOL_X + ox;
         let hot = self.vol_hovered();
         if e > 0.01 {
-            let w = 32.0 + (VOL_W - 32.0) * e;
+            let w = 28.0 + (VOL_W - 28.0) * e;
             let l = Self::vol_pill_x() + ox;
             let pill = rrect(l, BTN_Y - VOL_H / 2.0, w, VOL_H, VOL_H / 2.0);
             g.fill(&pill, &paint(24, 24, 28, al * e.min(1.0)));
@@ -887,11 +923,11 @@ impl App {
                 }
                 g.circle(b0 + fw, BTN_Y, 5.5, &paint(255, 255, 255, a));
                 let txt = if muted { tr("Mute").to_string() } else { format!("{pct}%") };
-                g.txt_c(&txt, l + VOL_W - 22.0, BTN_Y + ty(0.0, 11.0), 11.0, [255, 255, 255], a, 40.0, true);
+                g.txt_c(&txt, l + VOL_W - 21.0, BTN_Y + ty(0.0, 11.0), 11.0, [255, 255, 255], a, 38.0, true);
             }
         }
         let c = if hot || e > 0.5 { 1.0 } else { 0.75 };
-        g.icon_speaker(x, BTN_Y, 24.0, level, muted, &paint(255, 255, 255, c * al));
+        g.icon_speaker(x, BTN_Y, 23.0, level, muted, &paint(255, 255, 255, c * al));
     }
 
     pub(crate) fn slide_music(&self, g: &mut Gfx, ox: f32, al: f32) {
@@ -918,6 +954,8 @@ impl App {
                     g.line(sx - 4.0, 23.0, sx - 1.5, 20.5, 1.3, &c);
                 } else {
                     g.txt(tr("Now Playing"), LX + ox, 14.0, 12.0, TEXT_DIM, al, 200.0);
+                    let w = g.width(tr("Now Playing"), 12.0);
+                    self.net_indicator(g, LX + ox + w + 14.0, 15.0, al);
                 }
             }
         }
@@ -935,24 +973,29 @@ impl App {
             let dw = g.width(&ds, 11.0);
             g.txt(&ds, MX + ox + MW - dw, 104.0, 11.0, TEXT_DIM, al, 60.0);
         }
-        self.net_indicator(g, LX + ox, 148.0, al);
         let cx = MCX + ox;
         let cy = MCY;
-        g.icon_bubble(LYR_BTN_X + ox, BTN_Y, 18.0, &paint(255, 255, 255, 0.9 * al), &paint(12, 12, 16, al));
+        g.icon_bubble(LYR_BTN_X + ox, BTN_Y, 15.0, &paint(255, 255, 255, 0.9 * al), &paint(12, 12, 16, al));
         let white = paint(255, 255, 255, al);
         let px = cx - CTRL_GAP;
-        g.poly(&[(px + 6.0, cy - 7.0), (px + 6.0, cy + 7.0), (px - 6.0, cy)], &white);
-        g.rect(px - 9.0, cy - 7.0, 2.5, 14.0, &white);
+        self.press_halo(g, MediaBtn::Prev, px, cy, al);
+        let k = self.press_scale(MediaBtn::Prev);
+        g.poly(&[(px + 6.0 * k, cy - 7.0 * k), (px + 6.0 * k, cy + 7.0 * k), (px - 6.0 * k, cy)], &white);
+        g.rect(px - 9.0 * k, cy - 7.0 * k, 2.5 * k, 14.0 * k, &white);
         let nx = cx + CTRL_GAP;
-        g.poly(&[(nx - 6.0, cy - 7.0), (nx - 6.0, cy + 7.0), (nx + 6.0, cy)], &white);
-        g.rect(nx + 6.5, cy - 7.0, 2.5, 14.0, &white);
-        g.circle(cx, cy, 17.0, &white);
+        self.press_halo(g, MediaBtn::Next, nx, cy, al);
+        let k = self.press_scale(MediaBtn::Next);
+        g.poly(&[(nx - 6.0 * k, cy - 7.0 * k), (nx - 6.0 * k, cy + 7.0 * k), (nx + 6.0 * k, cy)], &white);
+        g.rect(nx + 6.5 * k, cy - 7.0 * k, 2.5 * k, 14.0 * k, &white);
+        self.press_halo(g, MediaBtn::Play, cx, cy, al);
+        let k = self.press_scale(MediaBtn::Play);
+        g.circle(cx, cy, 17.0 * k, &white);
         let blk = paint(0, 0, 0, al);
         if self.media.playing {
-            g.rect(cx - 6.0, cy - 7.0, 4.0, 14.0, &blk);
-            g.rect(cx + 2.0, cy - 7.0, 4.0, 14.0, &blk);
+            g.rect(cx - 6.0 * k, cy - 7.0 * k, 4.0 * k, 14.0 * k, &blk);
+            g.rect(cx + 2.0 * k, cy - 7.0 * k, 4.0 * k, 14.0 * k, &blk);
         } else {
-            g.poly(&[(cx - 4.0, cy - 8.0), (cx - 4.0, cy + 8.0), (cx + 8.0, cy)], &blk);
+            g.poly(&[(cx - 4.0 * k, cy - 8.0 * k), (cx - 4.0 * k, cy + 8.0 * k), (cx + 8.0 * k, cy)], &blk);
         }
         self.draw_vol(g, ox, al);
     }
